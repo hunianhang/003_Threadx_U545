@@ -42,7 +42,7 @@
 *                                                                    *
 **********************************************************************
 *                                                                    *
-*       RTT version: 7.00                                           *
+*       RTT version: 7.88                                           *
 *                                                                    *
 **********************************************************************
 
@@ -53,7 +53,7 @@ Revision: $Rev: 17697 $
 ----------------------------------------------------------------------
 */
 #include "SEGGER_RTT.h"
-#include "SEGGER_RTT_Conf.h"
+#include <SEGGER_RTT_Conf.h>
 
 /*********************************************************************
 *
@@ -457,6 +457,7 @@ int SEGGER_RTT_vprintf(unsigned BufferIndex, const char * sFormat, va_list * pPa
     if (BufferDesc.Cnt != 0u) {
       SEGGER_RTT_Write(BufferIndex, acBuffer, BufferDesc.Cnt);
     }
+    // TODO: cpi this looks like a defect, this seems to double the number of characters actually written.
     BufferDesc.ReturnValue += (int)BufferDesc.Cnt;
   }
   return BufferDesc.ReturnValue;
