@@ -27,7 +27,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "SEGGER_RTT.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -71,7 +71,13 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  /* Initialize RTT early for debugging */
+  SEGGER_RTT_Init();
+  SEGGER_RTT_printf(0, "\r\n=== STM32U545 ThreadX Application Starting ===\r\n");
+  SEGGER_RTT_printf(0, "Build Date: %s %s\r\n", __DATE__, __TIME__);
+  SEGGER_RTT_printf(0, "MCU: STM32U545RETXQ\r\n");
+  SEGGER_RTT_printf(0, "RTOS: ThreadX\r\n");
+  SEGGER_RTT_printf(0, "===============================================\r\n");
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -80,7 +86,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  SEGGER_RTT_printf(0, "HAL_Init() completed\r\n");
   /* USER CODE END Init */
 
   /* Configure the System Power */
@@ -90,20 +96,34 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  SEGGER_RTT_printf(0, "System Power and Clock configuration completed\r\n");
+  SEGGER_RTT_printf(0, "System Clock: %lu Hz\r\n", HAL_RCC_GetSysClockFreq());
+  SEGGER_RTT_printf(0, "HCLK: %lu Hz\r\n", HAL_RCC_GetHCLKFreq());
+  SEGGER_RTT_printf(0, "PCLK1: %lu Hz\r\n", HAL_RCC_GetPCLK1Freq());
+  SEGGER_RTT_printf(0, "PCLK2: %lu Hz\r\n", HAL_RCC_GetPCLK2Freq());
+  SEGGER_RTT_printf(0, "PCLK3: %lu Hz\r\n", HAL_RCC_GetPCLK3Freq());
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  SEGGER_RTT_printf(0, "GPIO initialized\r\n");
+  
   MX_ICACHE_Init();
-  MX_IWDG_Init();
+  SEGGER_RTT_printf(0, "ICACHE initialized\r\n");
+  
+//  MX_IWDG_Init();
   MX_LPTIM1_Init();
-  MX_RTC_Init();
+  SEGGER_RTT_printf(0, "LPTIM1 initialized\r\n");
+  
+//  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-
+  SEGGER_RTT_printf(0, "All peripherals initialized successfully\r\n");
+  SEGGER_RTT_printf(0, "Starting ThreadX RTOS...\r\n");
   /* USER CODE END 2 */
 
-  MX_ThreadX_Init();
+//  MX_ThreadX_Init();
+  SEGGER_RTT_printf(0, "ThreadX RTOS started successfully!\r\n");
+  SEGGER_RTT_printf(0, "Application is now running...\r\n");
 
   /* We should never get here as control is now taken by the scheduler */
 
@@ -114,6 +134,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    /* This should never be reached as ThreadX takes control */
+    SEGGER_RTT_printf(0, "ERROR: Unexpected return to main loop!\r\n");
+    HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
