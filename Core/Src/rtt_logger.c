@@ -302,7 +302,6 @@ void rtt_log_system_stats(void)
 {
   TX_THREAD thread_info;
   ULONG timer_activates, timer_reactivates, timer_deactivates, timer_expirations, timer_expiration_adjusts;
-  ULONG thread_activates, thread_reactivates, thread_suspends, thread_resumes, thread_preemptions, thread_time_slices;
   
   /* Get thread information */
   CHAR *thread_name;
@@ -332,12 +331,18 @@ void rtt_log_system_stats(void)
   }
   
   /* Get thread performance statistics */
-  if (tx_thread_performance_system_info_get(&thread_activates, &thread_reactivates, 
-                                           &thread_suspends, &thread_resumes, 
-                                           &thread_preemptions, &thread_time_slices) == TX_SUCCESS)
+  ULONG thread_resumptions, thread_suspensions, thread_solicited_preemptions, thread_interrupt_preemptions;
+  ULONG thread_priority_inversions, thread_time_slices, thread_relinquishes, thread_timeouts, thread_wait_aborts;
+  ULONG thread_non_idle_returns, thread_idle_returns;
+  
+  if (tx_thread_performance_system_info_get(&thread_resumptions, &thread_suspensions, 
+                                           &thread_solicited_preemptions, &thread_interrupt_preemptions,
+                                           &thread_priority_inversions, &thread_time_slices, 
+                                           &thread_relinquishes, &thread_timeouts, &thread_wait_aborts,
+                                           &thread_non_idle_returns, &thread_idle_returns) == TX_SUCCESS)
   {
-    rtt_log_info("Thread stats - Activates: %lu, Reactivates: %lu, Suspends: %lu, Resumes: %lu, Preemptions: %lu", 
-                 thread_activates, thread_reactivates, thread_suspends, thread_resumes, thread_preemptions);
+    rtt_log_info("Thread stats - Resumptions: %lu, Suspensions: %lu, Preemptions: %lu, Time slices: %lu", 
+                 thread_resumptions, thread_suspensions, thread_solicited_preemptions, thread_time_slices);
   }
   
   rtt_log_info("System tick: %lu", tx_time_get());
