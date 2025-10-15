@@ -23,7 +23,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include <string.h>
+#include "vbat_monitor.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,8 +48,33 @@ TX_THREAD tx_app_thread;
 TX_SEMAPHORE tx_app_semaphore;
 TX_MUTEX tx_app_mutex;
 TX_QUEUE tx_app_msg_queue;
-/* USER CODE BEGIN PV */
 
+/* USER CODE BEGIN PV */
+/* Periodic task related variables */
+TX_THREAD watchdog_thread;
+TX_THREAD hourly_log_thread;
+TX_THREAD daily_log_thread;
+TX_THREAD vbat_check_thread;
+
+TX_TIMER watchdog_timer;
+TX_TIMER hourly_log_timer;
+TX_TIMER daily_log_timer;
+TX_TIMER vbat_check_timer;
+
+TX_SEMAPHORE watchdog_semaphore;
+TX_SEMAPHORE hourly_log_semaphore;
+TX_SEMAPHORE daily_log_semaphore;
+TX_SEMAPHORE vbat_check_semaphore;
+
+/* Task stack space */
+UCHAR watchdog_stack[WATCHDOG_TASK_STACK_SIZE];
+UCHAR hourly_log_stack[LOG_TASK_STACK_SIZE];
+UCHAR daily_log_stack[LOG_TASK_STACK_SIZE];
+UCHAR vbat_check_stack[VBAT_TASK_STACK_SIZE];
+
+/* Global variables */
+extern IWDG_HandleTypeDef hiwdg;
+extern RTC_HandleTypeDef hrtc;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -108,6 +135,12 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
     return TX_MUTEX_ERROR;
   }
   /* USER CODE BEGIN App_ThreadX_Init */
+  /* Initialize periodic tasks */
+  ret = init_periodic_tasks(memory_ptr);
+  if (ret != TX_SUCCESS)
+  {
+    return ret;
+  }
   /* USER CODE END App_ThreadX_Init */
 
   return ret;
@@ -191,5 +224,308 @@ ULONG App_ThreadX_LowPower_Timer_Adjust(void)
 }
 
 /* USER CODE BEGIN 1 */
+
+/**
+ * @brief Initialize all periodic tasks
+ * @param memory_ptr: Memory pool pointer
+ * @retval UINT: Initialization result
+ */
+UINT init_periodic_tasks(VOID *memory_ptr)
+{
+  UINT ret = TX_SUCCESS;
+//  TX_BYTE_POOL *byte_pool = (TX_BYTE_POOL*)memory_ptr;
+//  CHAR *pointer;
+
+  /* Create watchdog task semaphore */
+  if (tx_semaphore_create(&watchdog_semaphore, "watchdog semaphore", 0) != TX_SUCCESS)
+  {
+    return TX_SEMAPHORE_ERROR;
+  }
+
+  /* Create hourly log task semaphore */
+  if (tx_semaphore_create(&hourly_log_semaphore, "hourly log semaphore", 0) != TX_SUCCESS)
+  {
+    return TX_SEMAPHORE_ERROR;
+  }
+
+  /* Create daily log task semaphore */
+  if (tx_semaphore_create(&daily_log_semaphore, "daily log semaphore", 0) != TX_SUCCESS)
+  {
+    return TX_SEMAPHORE_ERROR;
+  }
+
+  /* Create vbat check task semaphore */
+  if (tx_semaphore_create(&vbat_check_semaphore, "vbat check semaphore", 0) != TX_SUCCESS)
+  {
+    return TX_SEMAPHORE_ERROR;
+  }
+
+  /* Create watchdog task */
+  if (tx_thread_create(&watchdog_thread, "watchdog task", watchdog_task_entry, 0,
+                       watchdog_stack, WATCHDOG_TASK_STACK_SIZE,
+                       WATCHDOG_TASK_PRIORITY, WATCHDOG_TASK_PRIORITY,
+                       TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
+  {
+    return TX_THREAD_ERROR;
+  }
+
+  /* Create hourly log task */
+  if (tx_thread_create(&hourly_log_thread, "hourly log task", hourly_log_task_entry, 0,
+                       hourly_log_stack, LOG_TASK_STACK_SIZE,
+                       LOG_TASK_PRIORITY, LOG_TASK_PRIORITY,
+                       TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
+  {
+    return TX_THREAD_ERROR;
+  }
+
+  /* Create daily log task */
+  if (tx_thread_create(&daily_log_thread, "daily log task", daily_log_task_entry, 0,
+                       daily_log_stack, LOG_TASK_STACK_SIZE,
+                       LOG_TASK_PRIORITY, LOG_TASK_PRIORITY,
+                       TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
+  {
+    return TX_THREAD_ERROR;
+  }
+
+  /* Create vbat check task */
+  if (tx_thread_create(&vbat_check_thread, "vbat check task", vbat_check_task_entry, 0,
+                       vbat_check_stack, VBAT_TASK_STACK_SIZE,
+                       VBAT_TASK_PRIORITY, VBAT_TASK_PRIORITY,
+                       TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
+  {
+    return TX_THREAD_ERROR;
+  }
+
+  /* Create watchdog timer */
+  if (tx_timer_create(&watchdog_timer, "watchdog timer", watchdog_timer_callback, 0,
+                      WATCHDOG_TIMER_PERIOD_TICKS, WATCHDOG_TIMER_PERIOD_TICKS,
+                      TX_AUTO_ACTIVATE) != TX_SUCCESS)
+  {
+    return TX_TIMER_ERROR;
+  }
+
+  /* Create hourly log timer */
+  if (tx_timer_create(&hourly_log_timer, "hourly log timer", hourly_log_timer_callback, 0,
+                      HOURLY_LOG_TIMER_PERIOD_TICKS, HOURLY_LOG_TIMER_PERIOD_TICKS,
+                      TX_AUTO_ACTIVATE) != TX_SUCCESS)
+  {
+    return TX_TIMER_ERROR;
+  }
+
+  /* Create daily log timer */
+  if (tx_timer_create(&daily_log_timer, "daily log timer", daily_log_timer_callback, 0,
+                      DAILY_LOG_TIMER_PERIOD_TICKS, DAILY_LOG_TIMER_PERIOD_TICKS,
+                      TX_AUTO_ACTIVATE) != TX_SUCCESS)
+  {
+    return TX_TIMER_ERROR;
+  }
+
+  /* Create vbat check timer */
+  if (tx_timer_create(&vbat_check_timer, "vbat check timer", vbat_check_timer_callback, 0,
+                      VBAT_CHECK_TIMER_PERIOD_TICKS, VBAT_CHECK_TIMER_PERIOD_TICKS,
+                      TX_AUTO_ACTIVATE) != TX_SUCCESS)
+  {
+    return TX_TIMER_ERROR;
+  }
+
+  return ret;
+}
+
+/**
+ * @brief Watchdog task entry function
+ * @param thread_input: Thread input parameter
+ * @retval None
+ */
+void watchdog_task_entry(ULONG thread_input)
+{
+  while (1)
+  {
+    /* Wait for semaphore */
+    tx_semaphore_get(&watchdog_semaphore, TX_WAIT_FOREVER);
+    
+    /* Refresh watchdog */
+    HAL_IWDG_Refresh(&hiwdg);
+    
+    /* Debug information can be added here */
+    /* printf("Watchdog refreshed at tick: %lu\n", tx_time_get()); */
+  }
+}
+
+/**
+ * @brief Hourly log task entry function
+ * @param thread_input: Thread input parameter
+ * @retval None
+ */
+void hourly_log_task_entry(ULONG thread_input)
+{
+  RTC_TimeTypeDef sTime = {0};
+  RTC_DateTypeDef sDate = {0};
+  char log_buffer[128];
+  
+  while (1)
+  {
+    /* Wait for semaphore */
+    tx_semaphore_get(&hourly_log_semaphore, TX_WAIT_FOREVER);
+    
+    /* Get current time */
+    HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+    HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+    
+    /* Format log information */
+    snprintf(log_buffer, sizeof(log_buffer), 
+             "Hourly Log - Date: %02d/%02d/%04d Time: %02d:%02d:%02d Tick: %lu",
+             sDate.Date, sDate.Month, sDate.Year,
+             sTime.Hours, sTime.Minutes, sTime.Seconds,
+             tx_time_get());
+    
+    /* Output log (can be replaced with actual log output function) */
+    /* printf("%s\n", log_buffer); */
+    
+    /* Other hourly level log processing can be added here */
+  }
+}
+
+/**
+ * @brief Daily log task entry function
+ * @param thread_input: Thread input parameter
+ * @retval None
+ */
+void daily_log_task_entry(ULONG thread_input)
+{
+  RTC_TimeTypeDef sTime = {0};
+  RTC_DateTypeDef sDate = {0};
+  char log_buffer[128];
+  
+  while (1)
+  {
+    /* Wait for semaphore */
+    tx_semaphore_get(&daily_log_semaphore, TX_WAIT_FOREVER);
+    
+    /* Get current time */
+    HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+    HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+    
+    /* Format log information */
+    snprintf(log_buffer, sizeof(log_buffer), 
+             "Daily Log - Date: %02d/%02d/%04d Time: %02d:%02d:%02d Tick: %lu",
+             sDate.Date, sDate.Month, sDate.Year,
+             sTime.Hours, sTime.Minutes, sTime.Seconds,
+             tx_time_get());
+    
+    /* Output log (can be replaced with actual log output function) */
+    /* printf("%s\n", log_buffer); */
+    
+    /* Other daily level log processing can be added here, such as system status statistics */
+  }
+}
+
+/**
+ * @brief VBAT check task entry function
+ * @param thread_input: Thread input parameter
+ * @retval None
+ */
+void vbat_check_task_entry(ULONG thread_input)
+{
+  RTC_TimeTypeDef sTime = {0};
+  RTC_DateTypeDef sDate = {0};
+  char log_buffer[128];
+  uint32_t vbat_voltage;
+  VBAT_Status vbat_status;
+  
+  while (1)
+  {
+    /* Wait for semaphore */
+    tx_semaphore_get(&vbat_check_semaphore, TX_WAIT_FOREVER);
+    
+    /* Get current time */
+    HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+    HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+    
+    /* Execute VBAT monitoring task */
+    vbat_monitor_task_handler();
+    
+    /* Get VBAT voltage and status */
+    vbat_voltage = get_last_vbat_voltage();
+    vbat_status = check_vbat_status(vbat_voltage);
+    
+    /* Format log information */
+    snprintf(log_buffer, sizeof(log_buffer), 
+             "VBAT Check - Date: %02d/%02d/%04d Time: %02d:%02d:%02d VBAT: %lu mV (%s)",
+             sDate.Date, sDate.Month, sDate.Year,
+             sTime.Hours, sTime.Minutes, sTime.Seconds,
+             vbat_voltage, get_vbat_status_string(vbat_status));
+    
+    /* Output log (can be replaced with actual log output function) */
+    /* printf("%s\n", log_buffer); */
+    
+    /* Execute corresponding processing based on VBAT status */
+    switch (vbat_status)
+    {
+      case VBAT_STATUS_CRITICAL:
+        /* Critical voltage processing - may need to enter low power mode */
+        /* Emergency handling logic can be added here */
+        break;
+        
+      case VBAT_STATUS_LOW:
+        /* Low voltage processing - may need to reduce system load */
+        /* Power saving processing logic can be added here */
+        break;
+        
+      case VBAT_STATUS_HIGH:
+        /* High voltage processing - may need to check charging circuit */
+        /* Charging control logic can be added here */
+        break;
+        
+      case VBAT_STATUS_NORMAL:
+      default:
+        /* Normal voltage - no special processing needed */
+        break;
+    }
+  }
+}
+
+/**
+ * @brief Watchdog timer callback function
+ * @param timer_input: Timer input parameter
+ * @retval None
+ */
+void watchdog_timer_callback(ULONG timer_input)
+{
+  /* Release semaphore to wake up watchdog task */
+  tx_semaphore_put(&watchdog_semaphore);
+}
+
+/**
+ * @brief Hourly log timer callback function
+ * @param timer_input: Timer input parameter
+ * @retval None
+ */
+void hourly_log_timer_callback(ULONG timer_input)
+{
+  /* Release semaphore to wake up hourly log task */
+  tx_semaphore_put(&hourly_log_semaphore);
+}
+
+/**
+ * @brief Daily log timer callback function
+ * @param timer_input: Timer input parameter
+ * @retval None
+ */
+void daily_log_timer_callback(ULONG timer_input)
+{
+  /* Release semaphore to wake up daily log task */
+  tx_semaphore_put(&daily_log_semaphore);
+}
+
+/**
+ * @brief VBAT check timer callback function
+ * @param timer_input: Timer input parameter
+ * @retval None
+ */
+void vbat_check_timer_callback(ULONG timer_input)
+{
+  /* Release semaphore to wake up vbat check task */
+  tx_semaphore_put(&vbat_check_semaphore);
+}
 
 /* USER CODE END 1 */
