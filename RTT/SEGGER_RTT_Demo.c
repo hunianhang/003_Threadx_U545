@@ -91,7 +91,7 @@ static void HPTask(void) {
 *
 *********************************************************************/
 
-int main(void) {
+int main_(void) {
 //	OS_IncDI();                      /* Initially disable interrupts  */
 //	OS_InitKern();                   /* Initialize OS                 */
 //	OS_InitHW();                     /* Initialize Hardware for OS    */

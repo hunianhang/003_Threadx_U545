@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "vbat_monitor.h"
+#include "rtt_logger.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -135,12 +136,19 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
     return TX_MUTEX_ERROR;
   }
   /* USER CODE BEGIN App_ThreadX_Init */
+  /* Initialize RTT logger */
+  rtt_logger_init();
+  rtt_log_info("ThreadX application initialized");
+  
   /* Initialize periodic tasks */
   ret = init_periodic_tasks(memory_ptr);
   if (ret != TX_SUCCESS)
   {
+    rtt_log_error("Failed to initialize periodic tasks: %d", ret);
     return ret;
   }
+  
+  rtt_log_info("All periodic tasks initialized successfully");
   /* USER CODE END App_ThreadX_Init */
 
   return ret;
@@ -239,24 +247,28 @@ UINT init_periodic_tasks(VOID *memory_ptr)
   /* Create watchdog task semaphore */
   if (tx_semaphore_create(&watchdog_semaphore, "watchdog semaphore", 0) != TX_SUCCESS)
   {
+    rtt_log_error("Failed to create watchdog semaphore");
     return TX_SEMAPHORE_ERROR;
   }
 
   /* Create hourly log task semaphore */
   if (tx_semaphore_create(&hourly_log_semaphore, "hourly log semaphore", 0) != TX_SUCCESS)
   {
+    rtt_log_error("Failed to create hourly log semaphore");
     return TX_SEMAPHORE_ERROR;
   }
 
   /* Create daily log task semaphore */
   if (tx_semaphore_create(&daily_log_semaphore, "daily log semaphore", 0) != TX_SUCCESS)
   {
+    rtt_log_error("Failed to create daily log semaphore");
     return TX_SEMAPHORE_ERROR;
   }
 
   /* Create vbat check task semaphore */
   if (tx_semaphore_create(&vbat_check_semaphore, "vbat check semaphore", 0) != TX_SUCCESS)
   {
+    rtt_log_error("Failed to create vbat check semaphore");
     return TX_SEMAPHORE_ERROR;
   }
 
@@ -266,6 +278,7 @@ UINT init_periodic_tasks(VOID *memory_ptr)
                        WATCHDOG_TASK_PRIORITY, WATCHDOG_TASK_PRIORITY,
                        TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
   {
+    rtt_log_error("Failed to create watchdog task");
     return TX_THREAD_ERROR;
   }
 
@@ -275,6 +288,7 @@ UINT init_periodic_tasks(VOID *memory_ptr)
                        LOG_TASK_PRIORITY, LOG_TASK_PRIORITY,
                        TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
   {
+    rtt_log_error("Failed to create hourly log task");
     return TX_THREAD_ERROR;
   }
 
@@ -284,6 +298,7 @@ UINT init_periodic_tasks(VOID *memory_ptr)
                        LOG_TASK_PRIORITY, LOG_TASK_PRIORITY,
                        TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
   {
+    rtt_log_error("Failed to create daily log task");
     return TX_THREAD_ERROR;
   }
 
@@ -293,6 +308,7 @@ UINT init_periodic_tasks(VOID *memory_ptr)
                        VBAT_TASK_PRIORITY, VBAT_TASK_PRIORITY,
                        TX_NO_TIME_SLICE, TX_AUTO_START) != TX_SUCCESS)
   {
+    rtt_log_error("Failed to create vbat check task");
     return TX_THREAD_ERROR;
   }
 
@@ -301,6 +317,7 @@ UINT init_periodic_tasks(VOID *memory_ptr)
                       WATCHDOG_TIMER_PERIOD_TICKS, WATCHDOG_TIMER_PERIOD_TICKS,
                       TX_AUTO_ACTIVATE) != TX_SUCCESS)
   {
+    rtt_log_error("Failed to create watchdog timer");
     return TX_TIMER_ERROR;
   }
 
@@ -309,6 +326,7 @@ UINT init_periodic_tasks(VOID *memory_ptr)
                       HOURLY_LOG_TIMER_PERIOD_TICKS, HOURLY_LOG_TIMER_PERIOD_TICKS,
                       TX_AUTO_ACTIVATE) != TX_SUCCESS)
   {
+    rtt_log_error("Failed to create hourly log timer");
     return TX_TIMER_ERROR;
   }
 
@@ -317,6 +335,7 @@ UINT init_periodic_tasks(VOID *memory_ptr)
                       DAILY_LOG_TIMER_PERIOD_TICKS, DAILY_LOG_TIMER_PERIOD_TICKS,
                       TX_AUTO_ACTIVATE) != TX_SUCCESS)
   {
+    rtt_log_error("Failed to create daily log timer");
     return TX_TIMER_ERROR;
   }
 
@@ -325,9 +344,11 @@ UINT init_periodic_tasks(VOID *memory_ptr)
                       VBAT_CHECK_TIMER_PERIOD_TICKS, VBAT_CHECK_TIMER_PERIOD_TICKS,
                       TX_AUTO_ACTIVATE) != TX_SUCCESS)
   {
+    rtt_log_error("Failed to create vbat check timer");
     return TX_TIMER_ERROR;
   }
 
+  rtt_log_info("All tasks and timers created successfully");
   return ret;
 }
 
@@ -338,6 +359,10 @@ UINT init_periodic_tasks(VOID *memory_ptr)
  */
 void watchdog_task_entry(ULONG thread_input)
 {
+  static uint32_t refresh_count = 0;
+  
+  rtt_log_watchdog("Watchdog task started");
+  
   while (1)
   {
     /* Wait for semaphore */
@@ -345,9 +370,13 @@ void watchdog_task_entry(ULONG thread_input)
     
     /* Refresh watchdog */
     HAL_IWDG_Refresh(&hiwdg);
+    refresh_count++;
     
-    /* Debug information can be added here */
-    /* printf("Watchdog refreshed at tick: %lu\n", tx_time_get()); */
+    /* Log watchdog refresh every 10 times (50 seconds) */
+    if (refresh_count % 10 == 0)
+    {
+      rtt_log_watchdog("Watchdog refreshed %lu times", refresh_count);
+    }
   }
 }
 
@@ -360,7 +389,9 @@ void hourly_log_task_entry(ULONG thread_input)
 {
   RTC_TimeTypeDef sTime = {0};
   RTC_DateTypeDef sDate = {0};
-  char log_buffer[128];
+  static uint32_t log_count = 0;
+  
+  rtt_log_system("Hourly log task started");
   
   while (1)
   {
@@ -371,15 +402,17 @@ void hourly_log_task_entry(ULONG thread_input)
     HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
     
-    /* Format log information */
-    snprintf(log_buffer, sizeof(log_buffer), 
-             "Hourly Log - Date: %02d/%02d/%04d Time: %02d:%02d:%02d Tick: %lu",
-             sDate.Date, sDate.Month, sDate.Year,
-             sTime.Hours, sTime.Minutes, sTime.Seconds,
-             tx_time_get());
+    log_count++;
     
-    /* Output log (can be replaced with actual log output function) */
-    /* printf("%s\n", log_buffer); */
+    /* Log hourly system status */
+    rtt_log_system("Hourly Log #%lu - Date: %02d/%02d/%04d Time: %02d:%02d:%02d Tick: %lu",
+                   log_count,
+                   sDate.Date, sDate.Month, sDate.Year,
+                   sTime.Hours, sTime.Minutes, sTime.Seconds,
+                   tx_time_get());
+    
+    /* Log system statistics */
+    rtt_log_system_stats();
     
     /* Other hourly level log processing can be added here */
   }
@@ -394,7 +427,9 @@ void daily_log_task_entry(ULONG thread_input)
 {
   RTC_TimeTypeDef sTime = {0};
   RTC_DateTypeDef sDate = {0};
-  char log_buffer[128];
+  static uint32_t daily_log_count = 0;
+  
+  rtt_log_system("Daily log task started");
   
   while (1)
   {
@@ -405,15 +440,24 @@ void daily_log_task_entry(ULONG thread_input)
     HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
     
-    /* Format log information */
-    snprintf(log_buffer, sizeof(log_buffer), 
-             "Daily Log - Date: %02d/%02d/%04d Time: %02d:%02d:%02d Tick: %lu",
-             sDate.Date, sDate.Month, sDate.Year,
-             sTime.Hours, sTime.Minutes, sTime.Seconds,
-             tx_time_get());
+    daily_log_count++;
     
-    /* Output log (can be replaced with actual log output function) */
-    /* printf("%s\n", log_buffer); */
+    /* Log daily system status */
+    rtt_log_system("Daily Log #%lu - Date: %02d/%02d/%04d Time: %02d:%02d:%02d Tick: %lu",
+                   daily_log_count,
+                   sDate.Date, sDate.Month, sDate.Year,
+                   sTime.Hours, sTime.Minutes, sTime.Seconds,
+                   tx_time_get());
+    
+    /* Log detailed system statistics */
+    rtt_log_system("=== Daily System Report ===");
+    rtt_log_system_stats();
+    
+    /* Log task status */
+    rtt_log_task_status("Watchdog", "Running");
+    rtt_log_task_status("Hourly Log", "Running");
+    rtt_log_task_status("Daily Log", "Running");
+    rtt_log_task_status("VBAT Check", "Running");
     
     /* Other daily level log processing can be added here, such as system status statistics */
   }
@@ -428,9 +472,11 @@ void vbat_check_task_entry(ULONG thread_input)
 {
   RTC_TimeTypeDef sTime = {0};
   RTC_DateTypeDef sDate = {0};
-  char log_buffer[128];
   uint32_t vbat_voltage;
   VBAT_Status vbat_status;
+  static uint32_t check_count = 0;
+  
+  rtt_log_vbat("VBAT check task started");
   
   while (1)
   {
@@ -448,37 +494,40 @@ void vbat_check_task_entry(ULONG thread_input)
     vbat_voltage = get_last_vbat_voltage();
     vbat_status = check_vbat_status(vbat_voltage);
     
-    /* Format log information */
-    snprintf(log_buffer, sizeof(log_buffer), 
-             "VBAT Check - Date: %02d/%02d/%04d Time: %02d:%02d:%02d VBAT: %lu mV (%s)",
-             sDate.Date, sDate.Month, sDate.Year,
-             sTime.Hours, sTime.Minutes, sTime.Seconds,
-             vbat_voltage, get_vbat_status_string(vbat_status));
+    check_count++;
     
-    /* Output log (can be replaced with actual log output function) */
-    /* printf("%s\n", log_buffer); */
+    /* Log VBAT check result */
+    rtt_log_vbat("VBAT Check #%lu - Date: %02d/%02d/%04d Time: %02d:%02d:%02d VBAT: %lu mV (%s)",
+                 check_count,
+                 sDate.Date, sDate.Month, sDate.Year,
+                 sTime.Hours, sTime.Minutes, sTime.Seconds,
+                 vbat_voltage, get_vbat_status_string(vbat_status));
     
     /* Execute corresponding processing based on VBAT status */
     switch (vbat_status)
     {
       case VBAT_STATUS_CRITICAL:
         /* Critical voltage processing - may need to enter low power mode */
+        rtt_log_error("VBAT CRITICAL: %lu mV - Emergency action required!", vbat_voltage);
         /* Emergency handling logic can be added here */
         break;
         
       case VBAT_STATUS_LOW:
         /* Low voltage processing - may need to reduce system load */
+        rtt_log_warning("VBAT LOW: %lu mV - Power saving mode recommended", vbat_voltage);
         /* Power saving processing logic can be added here */
         break;
         
       case VBAT_STATUS_HIGH:
         /* High voltage processing - may need to check charging circuit */
+        rtt_log_warning("VBAT HIGH: %lu mV - Check charging circuit", vbat_voltage);
         /* Charging control logic can be added here */
         break;
         
       case VBAT_STATUS_NORMAL:
       default:
         /* Normal voltage - no special processing needed */
+        rtt_log_debug("VBAT NORMAL: %lu mV", vbat_voltage);
         break;
     }
   }
