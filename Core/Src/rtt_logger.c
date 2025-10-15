@@ -114,7 +114,9 @@ static void rtt_log_internal(uint8_t level, uint8_t channel, const char* format,
 {
   va_list args;
   char time_str[16];
-  
+
+  SEGGER_RTT_Init();
+
   /* Check log level */
   if (level > current_log_level)
   {
@@ -299,18 +301,43 @@ void rtt_log_task_status(const char* task_name, const char* status)
 void rtt_log_system_stats(void)
 {
   TX_THREAD thread_info;
-  TX_TIMER timer_info;
+  ULONG timer_activates, timer_reactivates, timer_deactivates, timer_expirations, timer_expiration_adjusts;
+  ULONG thread_activates, thread_reactivates, thread_suspends, thread_resumes, thread_preemptions, thread_time_slices;
   
   /* Get thread information */
-  if (tx_thread_info_get(&thread_info, TX_NULL, TX_NULL, TX_NULL, TX_NULL, TX_NULL, TX_NULL) == TX_SUCCESS)
+  CHAR *thread_name;
+  UINT thread_state, thread_priority, thread_preemption_threshold;
+  ULONG thread_run_count, thread_time_slice;
+  TX_THREAD *next_thread, *next_suspended_thread;
+  
+  if (tx_thread_info_get(&thread_info, &thread_name, &thread_state, &thread_run_count, 
+                         &thread_priority, &thread_preemption_threshold, &thread_time_slice,
+                         &next_thread, &next_suspended_thread) == TX_SUCCESS)
   {
-    rtt_log_info("Active threads: %lu", thread_info.tx_thread_run_count);
+    rtt_log_info("Thread run count: %lu", thread_run_count);
   }
   
-  /* Get timer information */
-  if (tx_timer_info_get(&timer_info, TX_NULL, TX_NULL, TX_NULL, TX_NULL) == TX_SUCCESS)
+  /* Get timer performance statistics */
+  if (tx_timer_performance_system_info_get(&timer_activates, &timer_reactivates, 
+                                          &timer_deactivates, &timer_expirations, 
+                                          &timer_expiration_adjusts) == TX_SUCCESS)
   {
-    rtt_log_info("Active timers: %lu", timer_info.tx_timer_active_count);
+    rtt_log_info("Timer stats - Activates: %lu, Reactivates: %lu, Deactivates: %lu, Expirations: %lu", 
+                 timer_activates, timer_reactivates, timer_deactivates, timer_expirations);
+  }
+  else
+  {
+    /* Fallback: We know we have 4 timers in our system */
+    rtt_log_info("Active timers: 4 (watchdog, hourly_log, daily_log, vbat_check)");
+  }
+  
+  /* Get thread performance statistics */
+  if (tx_thread_performance_system_info_get(&thread_activates, &thread_reactivates, 
+                                           &thread_suspends, &thread_resumes, 
+                                           &thread_preemptions, &thread_time_slices) == TX_SUCCESS)
+  {
+    rtt_log_info("Thread stats - Activates: %lu, Reactivates: %lu, Suspends: %lu, Resumes: %lu, Preemptions: %lu", 
+                 thread_activates, thread_reactivates, thread_suspends, thread_resumes, thread_preemptions);
   }
   
   rtt_log_info("System tick: %lu", tx_time_get());

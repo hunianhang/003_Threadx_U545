@@ -198,6 +198,6 @@ Watchdog任务具有最高优先级，确保系统能够及时刷新看门狗。
 ### 调试技巧
 
 1. 使用 `tx_thread_info_get()` 获取任务信息
-2. 使用 `tx_timer_info_get()` 获取定时器信息
+2. 使用 `tx_timer_performance_system_info_get()` 获取定时器性能统计信息
 3. 使用 `tx_semaphore_info_get()` 获取信号量信息
 4. 使用 `tx_time_get()` 获取系统运行时间
