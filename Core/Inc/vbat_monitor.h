@@ -35,14 +35,14 @@ extern "C" {
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 /**
- * @brief VBAT状态枚举
+ * @brief VBAT status enumeration
  */
 typedef enum
 {
-  VBAT_STATUS_NORMAL = 0,    /* 正常电压 */
-  VBAT_STATUS_LOW,           /* 低电压 */
-  VBAT_STATUS_HIGH,          /* 高电压 */
-  VBAT_STATUS_CRITICAL       /* 临界电压 */
+  VBAT_STATUS_NORMAL = 0,    /* Normal voltage */
+  VBAT_STATUS_LOW,           /* Low voltage */
+  VBAT_STATUS_HIGH,          /* High voltage */
+  VBAT_STATUS_CRITICAL       /* Critical voltage */
 } VBAT_Status;
 /* USER CODE END ET */
 
@@ -59,40 +59,40 @@ typedef enum
 /* Exported functions prototypes ---------------------------------------------*/
 /* USER CODE BEGIN EFP */
 /**
- * @brief 读取VBAT电压
- * @retval uint32_t: VBAT电压值（单位：mV）
+ * @brief Read VBAT voltage
+ * @retval uint32_t: VBAT voltage value (unit: mV)
  */
 uint32_t read_vbat_voltage(void);
 
 /**
- * @brief 检查VBAT电压状态
- * @param voltage_mv: 电压值（单位：mV）
- * @retval VBAT_Status: VBAT状态
+ * @brief Check VBAT voltage status
+ * @param voltage_mv: Voltage value (unit: mV)
+ * @retval VBAT_Status: VBAT status
  */
 VBAT_Status check_vbat_status(uint32_t voltage_mv);
 
 /**
- * @brief 获取VBAT状态描述字符串
- * @param status: VBAT状态
- * @retval const char*: 状态描述字符串
+ * @brief Get VBAT status description string
+ * @param status: VBAT status
+ * @retval const char*: Status description string
  */
 const char* get_vbat_status_string(VBAT_Status status);
 
 /**
- * @brief VBAT监控任务处理函数
+ * @brief VBAT monitoring task handler
  * @retval None
  */
 void vbat_monitor_task_handler(void);
 
 /**
- * @brief 获取最后一次检测的VBAT电压
- * @retval uint32_t: VBAT电压值（单位：mV）
+ * @brief Get last detected VBAT voltage
+ * @retval uint32_t: VBAT voltage value (unit: mV)
  */
 uint32_t get_last_vbat_voltage(void);
 
 /**
- * @brief 获取VBAT检测次数
- * @retval uint32_t: 检测次数
+ * @brief Get VBAT check count
+ * @retval uint32_t: Check count
  */
 uint32_t get_vbat_check_count(void);
 /* USER CODE END EFP */

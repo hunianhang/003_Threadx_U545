@@ -122,9 +122,9 @@ VBAT_Status check_vbat_status(uint32_t voltage_mv)
 }
 
 /**
- * @brief 获取VBAT状态描述字符串
- * @param status: VBAT状态
- * @retval const char*: 状态描述字符串
+ * @brief Get VBAT status description string
+ * @param status: VBAT status
+ * @retval const char*: Status description string
  */
 const char* get_vbat_status_string(VBAT_Status status)
 {
@@ -144,7 +144,7 @@ const char* get_vbat_status_string(VBAT_Status status)
 }
 
 /**
- * @brief VBAT监控任务处理函数
+ * @brief VBAT monitoring task handler
  * @retval None
  */
 void vbat_monitor_task_handler(void)
@@ -152,44 +152,44 @@ void vbat_monitor_task_handler(void)
   uint32_t current_vbat_voltage;
   VBAT_Status vbat_status;
   
-  /* 读取当前VBAT电压 */
+  /* Read current VBAT voltage */
   current_vbat_voltage = read_vbat_voltage();
   
-  /* 检查VBAT状态 */
+  /* Check VBAT status */
   vbat_status = check_vbat_status(current_vbat_voltage);
   
-  /* 更新全局变量 */
+  /* Update global variables */
   last_vbat_voltage = current_vbat_voltage;
   vbat_check_count++;
   
-  /* 根据状态执行相应的处理 */
+  /* Execute corresponding processing based on status */
   switch (vbat_status)
   {
     case VBAT_STATUS_CRITICAL:
-      /* 临界电压处理 - 可能需要进入低功耗模式或关机 */
-      /* 可以在这里添加紧急处理逻辑 */
+      /* Critical voltage processing - may need to enter low power mode or shutdown */
+      /* Emergency handling logic can be added here */
       break;
       
     case VBAT_STATUS_LOW:
-      /* 低电压处理 - 可能需要减少系统负载 */
-      /* 可以在这里添加节能处理逻辑 */
+      /* Low voltage processing - may need to reduce system load */
+      /* Power saving processing logic can be added here */
       break;
       
     case VBAT_STATUS_HIGH:
-      /* 高电压处理 - 可能需要检查充电电路 */
-      /* 可以在这里添加充电控制逻辑 */
+      /* High voltage processing - may need to check charging circuit */
+      /* Charging control logic can be added here */
       break;
       
     case VBAT_STATUS_NORMAL:
     default:
-      /* 正常电压 - 无需特殊处理 */
+      /* Normal voltage - no special processing needed */
       break;
   }
 }
 
 /**
- * @brief 获取最后一次检测的VBAT电压
- * @retval uint32_t: VBAT电压值（单位：mV）
+ * @brief Get last detected VBAT voltage
+ * @retval uint32_t: VBAT voltage value (unit: mV)
  */
 uint32_t get_last_vbat_voltage(void)
 {
@@ -197,8 +197,8 @@ uint32_t get_last_vbat_voltage(void)
 }
 
 /**
- * @brief 获取VBAT检测次数
- * @retval uint32_t: 检测次数
+ * @brief Get VBAT check count
+ * @retval uint32_t: Check count
  */
 uint32_t get_vbat_check_count(void)
 {
