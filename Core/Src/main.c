@@ -23,6 +23,7 @@
 #include "iwdg.h"
 #include "lptim.h"
 #include "rtc.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -106,24 +107,17 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  SEGGER_RTT_printf(0, "GPIO initialized\r\n");
-  
   MX_ICACHE_Init();
-  SEGGER_RTT_printf(0, "ICACHE initialized\r\n");
-  
-//  MX_IWDG_Init();
+  MX_IWDG_Init();
   MX_LPTIM1_Init();
-  SEGGER_RTT_printf(0, "LPTIM1 initialized\r\n");
-  
-//  MX_RTC_Init();
+  MX_RTC_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   SEGGER_RTT_printf(0, "All peripherals initialized successfully\r\n");
   SEGGER_RTT_printf(0, "Starting ThreadX RTOS...\r\n");
   /* USER CODE END 2 */
 
-//  MX_ThreadX_Init();
-  SEGGER_RTT_printf(0, "ThreadX RTOS started successfully!\r\n");
-  SEGGER_RTT_printf(0, "Application is now running...\r\n");
+  MX_ThreadX_Init();
 
   /* We should never get here as control is now taken by the scheduler */
 
@@ -152,7 +146,7 @@ void SystemClock_Config(void)
 
   /** Configure the main internal regulator output voltage
   */
-  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE4) != HAL_OK)
+  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE3) != HAL_OK)
   {
     Error_Handler();
   }
@@ -164,7 +158,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_4;
+  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_0;
   RCC_OscInitStruct.LSIDiv = RCC_LSI_DIV1;
   RCC_OscInitStruct.MSIKClockRange = RCC_MSIKRANGE_4;
   RCC_OscInitStruct.MSIKState = RCC_MSIK_ON;
@@ -185,7 +179,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB3CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();
   }

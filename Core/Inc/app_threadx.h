@@ -45,7 +45,7 @@ extern "C" {
 /* USER CODE END EC */
 
 /* Private defines -----------------------------------------------------------*/
-#define TX_APP_STACK_SIZE                       512
+#define TX_APP_STACK_SIZE                       4096
 #define TX_APP_THREAD_PRIO                      10
 #define TX_APP_SINGLE_MSG_SIZE                  1
 #define TX_APP_MSG_QUEUE_NB_MSG                 1

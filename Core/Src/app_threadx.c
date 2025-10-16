@@ -49,7 +49,6 @@ TX_THREAD tx_app_thread;
 TX_SEMAPHORE tx_app_semaphore;
 TX_MUTEX tx_app_mutex;
 TX_QUEUE tx_app_msg_queue;
-
 /* USER CODE BEGIN PV */
 /* Periodic task related variables */
 TX_THREAD watchdog_thread;
